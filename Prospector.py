@@ -1,6 +1,6 @@
 import googlemaps
 import time
-from math import acos, sin, cos
+from math import acos, sin, cos, radians, degrees
 
 # Location (lat, long)
 
@@ -9,7 +9,7 @@ class Prospector:
         self.gmaps = googlemaps.Client(apiKey)
 
     # Retourne la distance entre deux points (en mètres)
-    def CoordDistance(location1, location2):
+    def CoordDistance(self, location1, location2):
 
         (latStart, lonStart) = location1
         (latStop, lonStop) = location2
@@ -32,13 +32,19 @@ class Prospector:
         (latStart, lonStart) = location1
         (latStop, lonStop) = location2
 
-        dx  = self.CoordDistance(lonStart, latStart, lonStop, latStart)
-        dy  = self.CoordDistance(lonStart, latStart, lonStart, latStop)
+        dx  = self.CoordDistance((latStart, lonStart), (latStart, lonStop))
+        dy  = self.CoordDistance((latStart, lonStart), (latStop, lonStart))
         return (dx,dy)
 
     # Retourne les coordonnées d'un point après une translation de dx et dy mètres
     def Translate(self, location, dx, dy):
-        return
+        lat, lon = location
+        earth_radius = 6371000 # Earth's radius in meters
+        lat_change = dy / earth_radius
+        lon_change = dx / (earth_radius * cos(radians(lat)))
+        new_lat = lat + degrees(lat_change)
+        new_lon = lon + degrees(lon_change)
+        return (new_lat, new_lon)
 
     # Retourne l'ensemble des ID des places dans un rayon de radius mètres autour de location (max 60)
     def get_place_ids(self, location, radius):
@@ -54,13 +60,13 @@ class Prospector:
         return place_ids
     
         
-    # Scan une zone pour trouver TOUTES les places
-    def ScanZonePlaces(self, gmapsClient, longStart, latStart, longStop, latStop, radius, types):
+    # Scan une zone pour trouver TOUS les lieux de types demandés
+    def ScanZonePlaces(self, location1, location2, radius, types):
         place_ids = []
-        next_page_token = None
-
+        percentage = 0
+        
         # On récupère la distance entre les deux points selon X et Y
-        (dx, dy) = self.CoordDistance2Axes(latStart, longStart, latStop, longStop)
+        (dx, dy) = self.CoordDistance2Axes(location1, location2)
         incrX = dx / radius
         incrY = dy / radius
         currX, currY = (0,0)
@@ -68,12 +74,14 @@ class Prospector:
         while (currX < dx and currY < dy):
             # On récupère les places a currX et currY pour les types demandés
             for type in types:
-                places = gmapsClient.places_nearby((latStart + currY, longStart + currX), radius, type=type)
-                # On ajoute les places trouvées
-                place_ids += [result['place_id'] for result in places['results']]
-                next_page_token = places['next_page_token']
-                if not next_page_token:
-                    break
+                next_page_token = None
+                while True:
+                    places = self.gmaps.places_nearby(self.Translate(location1, currX, currY), radius, type=type)
+                    # On ajoute les places trouvées
+                    place_ids += [result['place_id'] for result in places['results']]
+                    if not next_page_token:
+                        break
+                    next_page_token = places['next_page_token']
             # Incrémenter les valeurs de currX et currY
             currX += incrX
             currY += incrY
