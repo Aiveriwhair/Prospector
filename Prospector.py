@@ -61,29 +61,60 @@ class Prospector:
     
         
     # Scan une zone pour trouver TOUS les lieux de types demandés
-    def ScanZonePlaces(self, location1, location2, radius, types):
+    def ScanZonePlacesId(self, location1, location2, radius, types):
         place_ids = []
-        percentage = 0
         
         # On récupère la distance entre les deux points selon X et Y
         (dx, dy) = self.CoordDistance2Axes(location1, location2)
-        incrX = dx / radius
-        incrY = dy / radius
+        incrX = dx / (radius * 2)
+        incrY = dy / (radius * 2) 
         currX, currY = (0,0)
+
+        requestTotal = len(types) * incrX * incrY
+        print("Total requests: {} -- {}".format(requestTotal, requestTotal * 3))
+        print("Expected time to scan: {} minutes".format(requestTotal * 2 / 60))
+        x = input("Continue ? Y/N")
+        if x != "Y": 
+            return
+            
+        requestCount = 0
         # Tant qu'on est dans la zone
-        while (currX < dx and currY < dy):
-            # On récupère les places a currX et currY pour les types demandés
-            for type in types:
-                next_page_token = None
-                while True:
-                    places = self.gmaps.places_nearby(self.Translate(location1, currX, currY), radius, type=type)
-                    # On ajoute les places trouvées
-                    place_ids += [result['place_id'] for result in places['results']]
-                    if not next_page_token:
-                        break
-                    next_page_token = places['next_page_token']
-            # Incrémenter les valeurs de currX et currY
-            currX += incrX
-            currY += incrY
+        while (currX < dx):
+            currY = 0
+            while(currY < dy):
+                print(currX, currY)
+                # On récupère les places a currX et currY pour les types demandés
+                for type in types:
+                    next_page_token = None
+                    while True:
+                        print("Request {}/{} == {}%".format(requestCount, requestTotal, requestCount/requestTotal*100, 2))
+                        places = self.gmaps.places_nearby(self.Translate(location1, currX, currY), radius, type=type)
+                        requestCount += 1
+                        # On ajoute les places trouvées
+                        place_ids += [result['place_id'] for result in places['results']]
+                        if not next_page_token:
+                            break
+                        next_page_token = places['next_page_token']
+                        time.sleep(2)
+                # Incrémenter les valeurs de currX et currY
+                currY += radius * 2
+            currX += radius * 2
+
+        return place_ids
+
+    # Scan une zone pour trouver TOUS les lieux avec les details
+    def ScanZonePlaces(self, location1, location2, radius, types, fields):
+        place_ids = self.ScanZonePlacesId(location1, location2, radius, types)
+        places = []
+        requestCount = 0
+        requestTotal = len(place_ids)
+        for place_id in place_ids:
+            print("Request {}/{} == {}%".format(requestCount, requestTotal, requestCount/requestTotal*100, 2))
+            
+            place = self.gmaps.place(place_id, fields=fields)
+            places.append(place)
+            time.sleep(2)
+            requestCount += 1
+        return places
         
         
