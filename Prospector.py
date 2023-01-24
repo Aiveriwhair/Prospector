@@ -82,14 +82,13 @@ class Prospector:
         while (currX < dx):
             currY = 0
             while(currY < dy):
-                print(currX, currY)
                 # On récupère les places a currX et currY pour les types demandés
                 for type in types:
                     next_page_token = None
                     while True:
+                        requestCount += 1
                         print("Request {}/{} == {}%".format(requestCount, requestTotal, requestCount/requestTotal*100, 2))
                         places = self.gmaps.places_nearby(self.Translate(location1, currX, currY), radius, type=type)
-                        requestCount += 1
                         # On ajoute les places trouvées
                         place_ids += [result['place_id'] for result in places['results']]
                         if not next_page_token:
@@ -108,6 +107,9 @@ class Prospector:
         places = []
         requestCount = 0
         requestTotal = len(place_ids)
+        x = input("Continue ? Y/N")
+        if x != "Y": 
+            return
         for place_id in place_ids:
             print("Request {}/{} == {}%".format(requestCount, requestTotal, requestCount/requestTotal*100, 2))
             
