@@ -1,6 +1,7 @@
 import googlemaps
 import time
 from math import acos, sin, cos, radians, degrees
+import csv
 
 # Location (lat, long)
 
@@ -110,13 +111,19 @@ class Prospector:
         x = input("Continue ? Y/N")
         if x != "Y": 
             return
+        f = open("./dist/places.txt", "w")
+        csvfile =  open('./dist/places.csv', 'w', newline='')
         for place_id in place_ids:
             print("Request {}/{} == {}%".format(requestCount, requestTotal, requestCount/requestTotal*100, 2))
-            
             place = self.gmaps.place(place_id, fields=fields)
+            f.write(str(place)+"\n")
+            w = csv.DictWriter(csvfile, place['result'].keys())
+            w.writeheader()
+            w.writerow(place['result'])
             places.append(place)
             time.sleep(2)
             requestCount += 1
+        f.close()
         return places
         
         
